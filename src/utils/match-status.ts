@@ -30,6 +30,9 @@ export const getMatchStatus = (
     return MATCH_STATUS.FINISHED;
   }
 
+  if(end <= start)
+    throw new Error("endTime must be after startTime");
+
   return MATCH_STATUS.LIVE;
 };
 
