@@ -4,7 +4,6 @@ import { db } from "../db/db";
 import { getMatchStatus } from "../utils/match-status";
 import { matches } from "../db/schema";
 import { desc } from "drizzle-orm";
-import { broadcast } from "node:stream/iter";
 
 export const matchRouter = Router();
 
@@ -63,7 +62,7 @@ matchRouter.post('/', async (req: Request, res: Response) => {
     const [match] = inserted;
 
     if(res.app.locals.broadcastMatchCreated) {
-      res.app.locals.broadcastMatchCreated(inserted);
+      res.app.locals.broadcastMatchCreated(match);
     }
 
     res.status(201).json({ data: match });
