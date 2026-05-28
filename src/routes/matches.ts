@@ -4,6 +4,7 @@ import { db } from "../db/db";
 import { getMatchStatus } from "../utils/match-status";
 import { matches } from "../db/schema";
 import { desc } from "drizzle-orm";
+import { broadcast } from "node:stream/iter";
 
 export const matchRouter = Router();
 
@@ -13,7 +14,11 @@ matchRouter.get('/', async (req, res) => {
   const parsed = listMatchesQuerySchema.safeParse(req.query);
 
   if(!parsed.success) 
-    return res.status(400).json({ error: 'Invalid query' , details: JSON.stringify(parsed.error)});
+    return res.status(400)
+  .json({ 
+    error: 'Invalid query' , 
+    details: parsed.error.issues
+  });
 
   const limit = Math.min(parsed.data.limit ?? 50 , MAX_LIMIT);
 
@@ -37,7 +42,7 @@ matchRouter.post('/', async (req: Request, res: Response) => {
   if (!parsed.success) {
     return res.status(400).json({
       error: 'Invalid payload',
-      details: JSON.stringify(parsed.error)
+      details: parsed.error.issues
     });
   }
 
@@ -56,6 +61,10 @@ matchRouter.post('/', async (req: Request, res: Response) => {
     }).returning();
 
     const [match] = inserted;
+
+    if(res.app.locals.broadcastMatchCreated) {
+      res.app.locals.broadcastMatchCreated(inserted);
+    }
 
     res.status(201).json({ data: match });
   } catch (err) {
