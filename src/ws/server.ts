@@ -2,6 +2,10 @@ import { Server as HttpServer} from "node:http";
 import WebSocket, { WebSocketServer } from "ws";
 import { Match } from "../db/schema";
 
+export interface AliveWebSocket extends WebSocket {
+  isAlive: boolean;
+}
+
 type JSONValue =
   | string
   | number
@@ -13,10 +17,11 @@ type JSONValue =
 
 
 const sendJSON = (socket: WebSocket, payload: JSONValue) => {
-  if(socket.readyState !== WebSocket.OPEN) {
+  const client = socket as AliveWebSocket;
+  if(client.readyState !== WebSocket.OPEN) {
    return;
   }
-  socket.send(JSON.stringify(payload));
+  client.send(JSON.stringify(payload));
 }
 
 const broadcast = (wss: WebSocketServer, payload: JSONValue) => {
@@ -35,14 +40,29 @@ export const attachWebSocketServer = (server: HttpServer) => {
     maxPayload: 1024 * 1024,
   });
   
-  wss.on('connection', (socket: WebSocket) => {
-    sendJSON(socket, { type : 'welcome' });
+ wss.on('connection', (socket: WebSocket) => {
+  const client = socket as AliveWebSocket;
+  client.isAlive = true;
+  client.on('pong', () => { client.isAlive = true; });
 
-    socket.on("error", console.error);
-  });
+  sendJSON(client, { type: 'welcome' });
+
+  client.on('error', console.error);
+ });
+
+ const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    const client = ws as AliveWebSocket;
+    if(client.isAlive === false) return client.terminate();
+
+    client.isAlive = false;
+    client.ping();
+  })}, 30000);
+
+  wss.on('close', () => clearInterval(interval));
 
   const broadcastMatchCreated = (match: Match) => {
-    broadcast(wss, { type: 'match_created',  data: match });
+    broadcast(wss, { type: 'match_created', data: match });
   }
 
   return { broadcastMatchCreated };
