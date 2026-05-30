@@ -18,10 +18,10 @@ type JSONValue =
 
 const sendJSON = (socket: WebSocket, payload: JSONValue) => {
   const client = socket as AliveWebSocket;
-  if(socket.readyState !== WebSocket.OPEN) {
+  if(client.readyState !== WebSocket.OPEN) {
    return;
   }
-  socket.send(JSON.stringify(payload));
+  client.send(JSON.stringify(payload));
 }
 
 const broadcast = (wss: WebSocketServer, payload: JSONValue) => {
@@ -45,7 +45,7 @@ export const attachWebSocketServer = (server: HttpServer) => {
   client.isAlive = true;
   client.on('pong', () => { client.isAlive = true; });
 
-  sendJSON(client, { type: 'Welcome' });
+  sendJSON(client, { type: 'welcome' });
 
   client.on('error', console.error);
  });
